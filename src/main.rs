@@ -1,46 +1,47 @@
-use log::debug;
+//use log::debug;
 use std::error::Error;
-use std::thread;
-use std::time::Duration;
+use std::{thread, time::Duration};
 
-use rppal::gpio::{Gpio, IoPin, Mode};
+mod l239d_motor_dsriver;
+use crate::l239d_motor_driver::Motor;
 
 //pins connected to L293D
 const PIN_MOTOR_EN: u8 = 13;
 const PIN_MOTOR_1A: u8 = 6;
 const PIN_MOTOR_2A: u8 = 5;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    //setup section
-    let gpio = Gpio::new()?;
+fn main() -> Result<(), Box<dyn Error>>  {
 
-    let mut motor_en = gpio.get(PIN_MOTOR_EN)?.into_output();
-    let mut motor_1a = gpio.get(PIN_MOTOR_1A)?.into_output();
-    let mut motor_2a = gpio.get(PIN_MOTOR_2A)?.into_output();
-
+    let mut motor = Motor::new(PIN_MOTOR_EN, PIN_MOTOR_1A, PIN_MOTOR_2A)?;
+    
+    
+    ctrlc::set_handler(move || {
+        let temp_motor = Motor::new(PIN_MOTOR_EN, PIN_MOTOR_1A, PIN_MOTOR_2A);
+        let mut temp_motor = match temp_motor {
+            Ok(motor) => motor,
+            Err(_e) => {std::process::exit(1);},
+        };
+        temp_motor.off();        
+    })
+    .expect("Error setting Ctrl-C handler"); 
+    
+    
     loop {
-        //spin left
-        motor_en.set_high();
-        motor_1a.set_high();
-        motor_2a.set_low();
+        motor.spin_forward();
         
         println!("spinning left?");
         thread::sleep(Duration::from_secs(1));
 
-        //spin right
-        motor_en.set_high();
-        motor_1a.set_low();
-        motor_2a.set_high();
+        motor.spin_backward();
 
         println!("spinning right?");
         thread::sleep(Duration::from_secs(1));
 
-        //fast stop
-        motor_en.set_high();
-        motor_1a.set_high();
-        motor_2a.set_high();
+        motor.brake();
 
         println!("stopping.");
         thread::sleep(Duration::from_secs(1));
     }
 }
+
+

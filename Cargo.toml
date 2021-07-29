@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 rppal = { version = "0.12.0", features = ["hal"] }
 log = "0.4"
+ctrlc = { version = "3.0", features = ["termination"] }
