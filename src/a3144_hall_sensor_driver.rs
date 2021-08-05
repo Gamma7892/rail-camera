@@ -16,8 +16,14 @@ impl HallSensor {
         };
         Ok(hall_sensor)
     }
+    //TODO make this only update on 
+    pub fn update(&mut self) {
+        if self.sens_in.is_low() {
+            self.step_count += 1;
+        }
+    }
 
-    pub fn dist_from_home() -> f32 {
+    pub fn dist_from_home(&self) -> f32 {
         // math to convert step_count to distance
         0.0
     }
