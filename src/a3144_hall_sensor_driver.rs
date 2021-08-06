@@ -3,12 +3,12 @@ use rppal::gpio::{Gpio, InputPin, Trigger, Level};
 
 pub struct HallSensor {
     sens_in: InputPin,
-    step_count: u32,
+    step_count: i32,
 }
 
 impl HallSensor {
 
-    #[allow(non_snake_case)] //pins should be constant, names reflect that
+    #[allow(non_snake_case)] //pin should be constant, name reflect that
     pub fn new(PIN_HALL_IN: u8) -> Result<HallSensor, Box<dyn Error>>{
         let mut hall_sensor = HallSensor {
             sens_in: Gpio::new()?.get(PIN_HALL_IN)?.into_input_pullup(),
@@ -25,7 +25,7 @@ impl HallSensor {
         }
     }
 
-    pub fn dist_from_home(&self) -> u32 {
+    pub fn dist_from_home(&self) -> i32 {
         // math to convert step_count to distance in mm
         0
     }

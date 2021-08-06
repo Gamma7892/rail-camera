@@ -16,12 +16,12 @@ const PIN_MOTOR_2A: u8 = 5;
 const PIN_HALL_IN: u8 = 26;
 
 //constant distances from HOME to each printer (in mm)
-const HOME: u32 = 0;
-const STATION1: u32 = 20;
-const STATION2: u32 = 30;
-const STATION3: u32 = 60;
+const HOME: i32 = 0;
+const STATION1: i32 = 20;
+const STATION2: i32 = 30;
+const STATION3: i32 = 60;
 
-const TARGET_FLAG: u32 = 0b10000000000000000000000000000000;
+const TARGET_FLAG: i32 = -0b10000000000000000000000000000000;
 const RANGE: i32 = 3; // acceptable +/- distance from target STATION
 
 fn main() -> Result<(), Box<dyn Error>>  {
@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn Error>>  {
     let tx_input = tx_encoder.clone();
 
     // variable declaration for main thread
-    let mut target = HOME;
+    let mut target = HOME as i32;
     //if dist were 0 on the first loop it'd never start because it's not updated till
     //encoder reads the magnet which can't happen till the motor spins
     let mut distance: i32 = 99; 
@@ -44,16 +44,16 @@ fn main() -> Result<(), Box<dyn Error>>  {
     thread::spawn(move || {
         loop {
             encoder.update();
-            tx_encoder.send(encoder.dist_from_home() as u32).unwrap();
+            tx_encoder.send(encoder.dist_from_home() as i32).unwrap();
             //this ^ was somehow interpreting as a f32 despite the fn signature
-            //clearly stating it was a u32, so it's an explicit cast now.
+            //clearly stating it was an i32, so it's an explicit cast now.
         }
     });
 
     //thread for tracking user input (and converting it to target distance)
     thread::spawn(move || {
         let io = io::stdin();
-        let mut desired_state: u32 = 0;
+        let mut desired_state: i32 = 0;
         
         loop {
             let mut cmd = String::new();
@@ -73,11 +73,11 @@ fn main() -> Result<(), Box<dyn Error>>  {
                 _ => println!("error parsing your input {}, try again.", cmd), 
             }
             println!("Target: {}", desired_state);
-            //setting a bit flag on the leftmost bit to indicate this is the target
+            //we'll check for this later to know this is a target
             desired_state = desired_state | TARGET_FLAG;
 
             //TODO properly handle Result instead of using unwrap
-            tx_input.send(desired_state).unwrap();
+            tx_input.send(desired_state as i32).unwrap();
         }
     });
 
@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn Error>>  {
                 else {
                     //we have an encoder distance
                     //so calculate distance & direction to target
-                    distance = (target - received) as i32;
+                    distance = target - received;
                 }
             },
             Err(_) => (),
@@ -110,5 +110,3 @@ fn main() -> Result<(), Box<dyn Error>>  {
         }
     }
 }
-
-
