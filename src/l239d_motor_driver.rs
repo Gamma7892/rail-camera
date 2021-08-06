@@ -30,14 +30,14 @@ impl Motor {
     }
     //pin combonations pulled dirctly from datasheet @
     // https://www.ti.com/lit/ds/symlink/l293.pdf
-    pub fn spin_forward(&mut self) {
+    pub fn forward(&mut self) {
         self.motor_en.set_high();
         self.motor_1a.set_high();
         self.motor_2a.set_low();
         self.state = State::Forward;
     }
 
-    pub fn spin_backward(&mut self) {
+    pub fn backward(&mut self) {
         self.motor_en.set_high();
         self.motor_1a.set_low();
         self.motor_2a.set_high();
