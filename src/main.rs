@@ -36,7 +36,9 @@ fn main() -> Result<(), Box<dyn Error>>  {
 
     // variable declaration for main thread
     let mut target = HOME;
-    let mut distance: i32 = 0;
+    //if dist were 0 on the first loop it'd never start because it's not updated till
+    //encoder reads the magnet which can't happen till the motor spins
+    let mut distance: i32 = 99; 
 
     //thread for maintaining distance 
     thread::spawn(move || {
@@ -51,17 +53,18 @@ fn main() -> Result<(), Box<dyn Error>>  {
     //thread for tracking user input (and converting it to target distance)
     thread::spawn(move || {
         let io = io::stdin();
-        let mut cmd = String::new();
         let mut desired_state: u32 = 0;
         
         loop {
-            println!("Cmds: \n
+            let mut cmd = String::new();
+            println!("Cmds: 
                  0: HOME the gondola
-                 1: move to printer 1 \n
-                 2: move to printer 2 \n
+                 1: move to printer 1 
+                 2: move to printer 2 
                  3: move to printer 3"
             );
             io.read_line(&mut cmd).expect("problems taking input.");
+            cmd.pop();
             match &cmd as &str {
                 "0" => desired_state = HOME,
                 "1" => desired_state = STATION1,
@@ -69,6 +72,7 @@ fn main() -> Result<(), Box<dyn Error>>  {
                 "3" => desired_state = STATION3,
                 _ => println!("error parsing your input {}, try again.", cmd), 
             }
+            println!("Target: {}", desired_state);
             //setting a bit flag on the leftmost bit to indicate this is the target
             desired_state = desired_state | TARGET_FLAG;
 
@@ -82,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error>>  {
     loop {
         match rx.try_recv() {
             Ok(received) => {
-                if received & TARGET_FLAG == TARGET_FLAG {
+                if (received & TARGET_FLAG) == TARGET_FLAG {
                     //this msg is from our user input so we take the flag out and store
                     target = received & (!TARGET_FLAG);
                 }
