@@ -57,11 +57,12 @@ fn main() -> Result<(), Box<dyn Error>>  {
         
         loop {
             let mut cmd = String::new();
-            println!("Cmds: 
+            println!(" Cmds: 
                  0: HOME the gondola
                  1: move to printer 1 
                  2: move to printer 2 
-                 3: move to printer 3"
+                 3: move to printer 3 
+                 4: disable motor"
             );
             io.read_line(&mut cmd).expect("problems taking input.");
             cmd.pop();
@@ -70,9 +71,9 @@ fn main() -> Result<(), Box<dyn Error>>  {
                 "1" => desired_state = STATION1,
                 "2" => desired_state = STATION2,
                 "3" => desired_state = STATION3,
+                "4" => desired_state = 4, //off case
                 _ => println!("error parsing your input {}, try again.", cmd), 
             }
-            println!("Target: {}", desired_state);
             //we'll check for this later to know this is a target
             desired_state = desired_state | TARGET_FLAG;
 
@@ -87,13 +88,18 @@ fn main() -> Result<(), Box<dyn Error>>  {
         match rx.try_recv() {
             Ok(received) => {
                 if (received & TARGET_FLAG) == TARGET_FLAG {
-                    //this msg is from our user input so we take the flag out and store
-                    target = received & (!TARGET_FLAG);
+                    //this msg is from our user input so we take the flag out and run any cmds
+                    let msg = received & (!TARGET_FLAG);
+                    match msg {
+                        4 => motor.off(),
+                        _ => target = msg, //if it's not a special case we pass through all dist.
+                    }
                 }
                 else {
                     //we have an encoder distance
                     //so calculate distance & direction to target
                     distance = target - received;
+                    println!("dist to target: {}", distance);
                 }
             },
             Err(_) => (),

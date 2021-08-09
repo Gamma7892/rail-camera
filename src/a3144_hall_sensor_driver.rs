@@ -26,7 +26,11 @@ impl HallSensor {
     }
 
     pub fn dist_from_home(&self) -> i32 {
-        // math to convert step_count to distance in mm
+        // assume 4 ticks = 1 revolution of drive
+        // and 1 drive revolve = 1/40 output revolve
+        // then 4 ticks * 40 = 1 output revolve
+        // then 4 ticks * 40 = perimeter of output wheel
+        // assume perimeter of output wheel = 100 mm
         0
     }
 }
