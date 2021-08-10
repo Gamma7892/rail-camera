@@ -13,16 +13,25 @@ const PIN_MOTOR_EN: u8 = 13;
 const PIN_MOTOR_1A: u8 = 6;
 const PIN_MOTOR_2A: u8 = 5;
 
+//pin connected to A3144
 const PIN_HALL_IN: u8 = 26;
 
-//constant distances from HOME to each printer (in mm)
-const HOME: i32 = 0;
-const STATION1: i32 = 20;
-const STATION2: i32 = 30;
-const STATION3: i32 = 60;
+const RANGE: f32 = 3.0; // acceptable +/- distance from target Station
 
-const TARGET_FLAG: i32 = -0b10000000000000000000000000000000;
-const RANGE: i32 = 3; // acceptable +/- distance from target STATION
+enum MessageType {
+    State(State),
+    Location(f32)
+}
+
+/// Each station is a printer's distance from home, values after that are special cmds
+enum State {
+    Home = 0,
+    Station1 = 30,
+    Station2 = 50,
+    Station3 = 100,
+    Off = 1, // arbitrary, not called.
+}
+
 
 fn main() -> Result<(), Box<dyn Error>>  {
 
@@ -35,16 +44,18 @@ fn main() -> Result<(), Box<dyn Error>>  {
     let tx_input = tx_encoder.clone();
 
     // variable declaration for main thread
-    let mut target = HOME as i32;
+    let mut target = State::Home as i32;
+    let mut nav_flag = false;
     //if dist were 0 on the first loop it'd never start because it's not updated till
     //encoder reads the magnet which can't happen till the motor spins
-    let mut distance: i32 = 99; 
+    let mut distance: f32 = 99.0;
 
     //thread for maintaining distance 
     thread::spawn(move || {
         loop {
             encoder.update();
-            tx_encoder.send(encoder.dist_from_home() as i32).unwrap();
+            //encoder.fake_tick();
+            tx_encoder.send(MessageType::Location(encoder.dist_from_home() as f32)).unwrap();
             //this ^ was somehow interpreting as a f32 despite the fn signature
             //clearly stating it was an i32, so it's an explicit cast now.
         }
@@ -53,9 +64,10 @@ fn main() -> Result<(), Box<dyn Error>>  {
     //thread for tracking user input (and converting it to target distance)
     thread::spawn(move || {
         let io = io::stdin();
-        let mut desired_state: i32 = 0;
+        
         
         loop {
+            let mut desired_state = State::Off; //i32 = 0;
             let mut cmd = String::new();
             println!(" Cmds: 
                  0: HOME the gondola
@@ -67,18 +79,16 @@ fn main() -> Result<(), Box<dyn Error>>  {
             io.read_line(&mut cmd).expect("problems taking input.");
             cmd.pop();
             match &cmd as &str {
-                "0" => desired_state = HOME,
-                "1" => desired_state = STATION1,
-                "2" => desired_state = STATION2,
-                "3" => desired_state = STATION3,
-                "4" => desired_state = 4, //off case
+                "0" => desired_state = State::Home,
+                "1" => desired_state = State::Station1,
+                "2" => desired_state = State::Station2,
+                "3" => desired_state = State::Station3,
+                "4" => desired_state = State::Off,
                 _ => println!("error parsing your input {}, try again.", cmd), 
             }
-            //we'll check for this later to know this is a target
-            desired_state = desired_state | TARGET_FLAG;
 
             //TODO properly handle Result instead of using unwrap
-            tx_input.send(desired_state as i32).unwrap();
+            tx_input.send(MessageType::State(desired_state)).unwrap();
         }
     });
 
@@ -87,32 +97,46 @@ fn main() -> Result<(), Box<dyn Error>>  {
     loop {
         match rx.try_recv() {
             Ok(received) => {
-                if (received & TARGET_FLAG) == TARGET_FLAG {
-                    //this msg is from our user input so we take the flag out and run any cmds
-                    let msg = received & (!TARGET_FLAG);
-                    match msg {
-                        4 => motor.off(),
-                        _ => target = msg, //if it's not a special case we pass through all dist.
-                    }
-                }
-                else {
-                    //we have an encoder distance
-                    //so calculate distance & direction to target
-                    distance = target - received;
-                    println!("dist to target: {}", distance);
+                match received {
+                    MessageType::State(state) => handle_state_change(state, &mut target, &mut nav_flag),
+                    MessageType::Location(dist) => distance = handle_location_message(dist, target),
                 }
             },
             Err(_) => (),
         }
-        //check if we're close enough to target
-        if distance < RANGE && distance > (-1 * RANGE) {
-            motor.brake();
-        }
-        else if distance > 0 {
-            motor.forward();
+        if nav_flag {
+            //check if we're close enough to target
+            if distance < RANGE && distance > (-1.0 * RANGE) {
+                motor.brake();
+            }
+            else if distance > 0.0 {
+                motor.forward();
+            }
+            else {
+                motor.backward();
+            }
         }
         else {
-            motor.backward();
+            motor.off();
         }
     }
+}
+
+/// handles user input from user IO thread
+fn handle_state_change(new_state: State, old_target: &mut i32, nav_flag: &mut bool) {
+    use crate::State::*;
+
+    match new_state {
+        Home => *old_target = Home as i32,
+        Station1 => *old_target = Station1 as i32,
+        Station2 => *old_target = Station3 as i32,
+        Station3 => *old_target = Station3 as i32,
+        Off => *nav_flag = false,
+    }
+}
+
+
+/// handles location message sent from encoder reading
+fn handle_location_message(dist_from_home: f32, target: i32) -> f32 {
+    target as f32 - dist_from_home
 }

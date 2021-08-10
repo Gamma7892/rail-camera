@@ -25,12 +25,18 @@ impl HallSensor {
         }
     }
 
-    pub fn dist_from_home(&self) -> i32 {
+    pub fn dist_from_home(&self) -> f32 {
         // assume 4 ticks = 1 revolution of drive
         // and 1 drive revolve = 1/40 output revolve
         // then 4 ticks * 40 = 1 output revolve
         // then 4 ticks * 40 = perimeter of output wheel
         // assume perimeter of output wheel = 100 mm
-        0
+
+        //(self.step_count as f32 * 100.0/160.0)
+        0.0
+    }
+
+    pub fn fake_tick(&mut self) {
+        self.step_count += 1;
     }
 }
