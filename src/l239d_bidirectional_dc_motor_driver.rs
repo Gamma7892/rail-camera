@@ -1,5 +1,14 @@
 
 use std::error::Error;
+
+/* 
+   this file is no longer used in the project,
+   as I've switched to a 4-pin stepper motor.
+   I've left the bidirectional DC controller code
+   for future reference.
+*/
+
+
 use rppal::gpio::{Gpio, OutputPin};
 
 pub struct Motor {
