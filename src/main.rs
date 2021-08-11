@@ -1,17 +1,25 @@
 //use log::debug;
 use std::{error::Error, sync::mpsc};
 use std::{io, thread};
-    
-mod l239d_motor_driver;
-use crate::l239d_motor_driver::Motor;
 
+mod l239d_4pin_stepper_motor_driver;
+use crate::l239d_4pin_stepper_motor_driver::Motor;
+
+/* Driver code written for parts no longer in use
+
+mod l239d_bidirectional_dc_motor_driver;
+use crate::l239d_bidirectional_dc_motor_driver::Motor;
 mod a3144_hall_sensor_driver;
 use crate::a3144_hall_sensor_driver::HallSensor;
+*/
 
 //pins connected to L293D
 const PIN_MOTOR_EN: u8 = 13;
 const PIN_MOTOR_1A: u8 = 6;
 const PIN_MOTOR_2A: u8 = 5;
+const PIN_MOTOR_3A: u8 = 7; //TODO get real numbers 
+const PIN_MOTOR_4A: u8 = 8;
+const RPM: u16 = 60; //TODO make a more educated guess
 
 //pin connected to A3144
 const PIN_HALL_IN: u8 = 26;
@@ -36,8 +44,11 @@ enum State {
 fn main() -> Result<(), Box<dyn Error>>  {
 
     //device setup
-    let mut motor = Motor::new(PIN_MOTOR_EN, PIN_MOTOR_1A, PIN_MOTOR_2A)?;
-    let mut encoder = HallSensor::new(PIN_HALL_IN)?;
+    let mut motor = Motor::new(PIN_MOTOR_EN, PIN_MOTOR_1A, PIN_MOTOR_2A,
+                                             PIN_MOTOR_3A, PIN_MOTOR_4A,
+                                             RPM);
+    //let mut motor = Motor::new(PIN_MOTOR_EN, PIN_MOTOR_1A, PIN_MOTOR_2A)?;
+    //let mut encoder = HallSensor::new(PIN_HALL_IN)?;
 
     //thread setup
     let (tx_encoder, rx) = mpsc::channel();
@@ -51,15 +62,15 @@ fn main() -> Result<(), Box<dyn Error>>  {
     let mut distance: f32 = 99.0;
 
     //thread for maintaining distance 
-    thread::spawn(move || {
-        loop {
-            encoder.update();
-            //encoder.fake_tick();
-            tx_encoder.send(MessageType::Location(encoder.dist_from_home() as f32)).unwrap();
-            //this ^ was somehow interpreting as a f32 despite the fn signature
-            //clearly stating it was an i32, so it's an explicit cast now.
-        }
-    });
+    // thread::spawn(move || {
+    //     loop {
+    //         encoder.update();
+    //         //encoder.fake_tick();
+    //         tx_encoder.send(MessageType::Location(encoder.dist_from_home() as f32)).unwrap();
+    //         //this ^ was somehow interpreting as a f32 despite the fn signature
+    //         //clearly stating it was an i32, so it's an explicit cast now.
+    //     }
+    // });
 
     //thread for tracking user input (and converting it to target distance)
     thread::spawn(move || {
@@ -104,20 +115,21 @@ fn main() -> Result<(), Box<dyn Error>>  {
             },
             Err(_) => (),
         }
+        // We use nav_flag to decide if we're interested in moving rn.
         if nav_flag {
             //check if we're close enough to target
             if distance < RANGE && distance > (-1.0 * RANGE) {
-                motor.brake();
+               // motor.brake();
             }
             else if distance > 0.0 {
-                motor.forward();
+               // motor.forward();
             }
             else {
-                motor.backward();
+                //motor.backward();
             }
         }
         else {
-            motor.off();
+           // motor.off();
         }
     }
 }
