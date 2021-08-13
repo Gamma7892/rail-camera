@@ -1,18 +1,15 @@
-
 use std::error::Error;
 
-/* 
+/*
    this file is no longer used in the project,
    as I've switched to a 4-pin stepper motor.
    I've left the bidirectional DC controller code
    for future reference.
 */
 
-
 use rppal::gpio::{Gpio, OutputPin};
 
 pub struct Motor {
-
     motor_en: OutputPin,
     motor_1a: OutputPin,
     motor_2a: OutputPin,
@@ -25,9 +22,12 @@ pub enum State {
     Off,
 }
 impl Motor {
-    
     #[allow(non_snake_case)] //pins should be constant, names reflect that
-    pub fn new(PIN_MOTOR_EN: u8, PIN_MOTOR_1A: u8, PIN_MOTOR_2A: u8) -> Result<Motor, Box<dyn Error>>{
+    pub fn new(
+        PIN_MOTOR_EN: u8,
+        PIN_MOTOR_1A: u8,
+        PIN_MOTOR_2A: u8,
+    ) -> Result<Motor, Box<dyn Error>> {
         let gpio = Gpio::new()?;
         let motor = Motor {
             motor_en: gpio.get(PIN_MOTOR_EN)?.into_output(),
@@ -66,5 +66,4 @@ impl Motor {
         self.motor_2a.set_low();
         self.state = State::Off;
     }
-
 }

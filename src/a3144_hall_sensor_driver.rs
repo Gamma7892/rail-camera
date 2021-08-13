@@ -1,11 +1,11 @@
-/* 
+/*
     This module is no longer used now that I moved to a
     stepper motor. I've left it here for future reference
     along with the DC motor module.
 */
 
+use rppal::gpio::{Gpio, InputPin, Level, Trigger};
 use std::error::Error;
-use rppal::gpio::{Gpio, InputPin, Trigger, Level};
 
 pub struct HallSensor {
     sens_in: InputPin,
@@ -13,9 +13,8 @@ pub struct HallSensor {
 }
 
 impl HallSensor {
-
     #[allow(non_snake_case)] //pin should be constant, name reflect that
-    pub fn new(PIN_HALL_IN: u8) -> Result<HallSensor, Box<dyn Error>>{
+    pub fn new(PIN_HALL_IN: u8) -> Result<HallSensor, Box<dyn Error>> {
         let mut hall_sensor = HallSensor {
             sens_in: Gpio::new()?.get(PIN_HALL_IN)?.into_input_pullup(),
             step_count: 0,
@@ -38,7 +37,7 @@ impl HallSensor {
         // then 4 ticks * 40 = perimeter of output wheel
         // assume perimeter of output wheel = 100 mm
 
-        self.step_count as f32 * 100.0/160.0
+        self.step_count as f32 * 100.0 / 160.0
     }
 
     //for testing purposes only
