@@ -2,8 +2,8 @@
 use std::{error::Error, sync::mpsc};
 use std::{io, thread};
 
-mod l239d_4pin_stepper_motor_driver;
-use crate::l239d_4pin_stepper_motor_driver::Motor;
+mod l239d_driver;
+use crate::l239d_driver::four_pin_stepper_motor::Motor;
 
 /* Driver code written for parts no longer in use
 

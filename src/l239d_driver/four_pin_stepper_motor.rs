@@ -9,6 +9,7 @@ use std::{
     error::Error,
     time::{Duration, Instant},
 };
+use super::State;
 
 pub struct Motor {
     motor_en1: OutputPin,
@@ -24,12 +25,7 @@ pub struct Motor {
     direction: State,
     wheel_circumference: u16, // in mm
 }
-pub enum State {
-    Forward,
-    Backward,
-    Stopped,
-    Off,
-}
+
 impl Motor {
     #[allow(non_snake_case)] //pins should be constant, names reflect that
     pub fn new(
@@ -44,7 +40,7 @@ impl Motor {
     ) -> Result<Motor, Box<dyn Error>> {
         
         let gpio = Gpio::new()?;
-        let mut motor = Motor {
+        let motor = Motor {
             motor_en1: gpio.get(PIN_M_EN1)?.into_output(),
             motor_en2: gpio.get(PIN_M_EN2)?.into_output(),
             motor_1a: gpio.get(PIN_M_1A)?.into_output(),
@@ -94,7 +90,7 @@ impl Motor {
     pub fn step(&mut self, steps: i32) {
         
         if self.step_delay == Duration::from_millis(0) {
-            println!("speed not set. call set_speed() first.");
+            println!("speed not set call set_speed() first.");
             return;
         }
 
@@ -103,8 +99,11 @@ impl Motor {
         if steps > 0 {
             self.direction = State::Forward
         }
-        if steps < 0 {
+        else if steps < 0 {
             self.direction = State::Backward
+        }
+        else {
+            self.direction = State::Stopped
         }
 
         while remaining_steps > 0 {

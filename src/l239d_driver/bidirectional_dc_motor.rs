@@ -8,6 +8,7 @@ use std::error::Error;
 */
 
 use rppal::gpio::{Gpio, OutputPin};
+use super::State;
 
 pub struct Motor {
     motor_en: OutputPin,
@@ -15,12 +16,7 @@ pub struct Motor {
     motor_2a: OutputPin,
     state: State,
 }
-pub enum State {
-    Forward,
-    Backward,
-    Stopped,
-    Off,
-}
+
 impl Motor {
     #[allow(non_snake_case)] //pins should be constant, names reflect that
     pub fn new(
