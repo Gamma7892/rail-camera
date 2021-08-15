@@ -66,6 +66,7 @@ impl Motor {
         else {
             self.motor_en1.set_low();
             self.motor_en2.set_low();
+            self.steps_taken = 0;
         }
     }
 
@@ -123,7 +124,6 @@ impl Motor {
                 remaining_steps -= 1;
             }
         }
-        println!("current location is: {}", self.dist_from_home());
     }
 
     /// handles each individual motor step
@@ -133,30 +133,40 @@ impl Motor {
 
         match this_step {
             0 => {
-                self.motor_2a.set_high();
-                self.motor_1a.set_low();
+                self.motor_1a.set_high();
+                self.motor_2a.set_low();
                 self.motor_3a.set_high();
                 self.motor_4a.set_low();
             }
             1 => {
-                self.motor_2a.set_low();
-                self.motor_1a.set_high();
+                self.motor_1a.set_low();
+                self.motor_2a.set_high();
                 self.motor_3a.set_high();
                 self.motor_4a.set_low();
             }
             2 => {
-                self.motor_2a.set_low();
-                self.motor_1a.set_high();
+                self.motor_1a.set_low();
+                self.motor_2a.set_high();
                 self.motor_3a.set_low();
                 self.motor_4a.set_high();
             }
             3 => {
-                self.motor_2a.set_high();
-                self.motor_1a.set_low();
+                self.motor_1a.set_high();
+                self.motor_2a.set_low();
                 self.motor_3a.set_low();
                 self.motor_4a.set_high();
             }
             _ => (), //we never get here anyway but it makes compiler happy
         }
+    }
+
+    pub fn status(&self) {
+        println!(
+            " Status: 
+             State: {}
+             Distance from home: {}",
+             self.direction,
+             self.dist_from_home(),
+        );
     }
 }

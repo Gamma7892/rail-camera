@@ -27,6 +27,8 @@ const WHEEL_CIRCUMFERENCE: u16 = 150; // in mm
 //pin connected to A3144
 //const PIN_HALL_IN: u8 = 26;
 
+const ACCEPTABLE_ERROR: f32 = 0.5; // in mm
+
 enum MessageType {
     State(State),
     Location(f32),
@@ -40,6 +42,7 @@ enum State {
     Station3 = 150,
     On = 1,  // arbitrary val
     Off = 2, // arbitrary val
+    Status = 3, // arbitrary val
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -92,7 +95,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                  2: move to printer 2 
                  3: move to printer 3 
                  4: enable motor 
-                 5: disable motor"
+                 5: disable motor 
+                 6: print status info"
             );
             io.read_line(&mut cmd).expect("problems taking input.");
             cmd.pop();
@@ -103,6 +107,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 "3" => desired_state = State::Station3,
                 "4" => desired_state = State::On,
                 "5" => desired_state = State::Off,
+                "6" => desired_state = State::Status,
                 _ => println!("error parsing your input of \"{}\", try again.", cmd),
             }
 
@@ -119,11 +124,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                 MessageType::State(state) => handle_state_change(state, &mut target, &mut nav_flag, &mut motor),
                 MessageType::Location(dist) => distance = handle_location_message(dist, target),
             },
-            Err(_) => continue,
+            Err(_) => (),
         }
         // We use nav_flag to only goto the target once instead of calling repeatedly
         if nav_flag {
-            motor.goto(target as f32);
+            //now visit every step in between target and where we are so we can change target any time. 
+            // motor.goto() had the downside of not allowing a new target until it completed. 
+            let range_to_target = target as f32 - motor.dist_from_home();
+            if range_to_target > ACCEPTABLE_ERROR || range_to_target < (-1.0 * ACCEPTABLE_ERROR) {
+                if range_to_target > 0.0 { motor.step(1) } else { motor.step(-1) };
+            }
         }
     }
 }
@@ -139,6 +149,7 @@ fn handle_state_change(new_state: State, old_target: &mut i32, nav_flag: &mut bo
         Station3 => *old_target = Station3 as i32,
         On =>  { motor.set_power(true); *nav_flag = true; }
         Off => { motor.set_power(false); *nav_flag = false; }
+        Status => { motor.status();}
     }
 }
 
