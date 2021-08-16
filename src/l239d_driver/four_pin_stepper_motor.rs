@@ -83,7 +83,7 @@ impl Motor {
     }
 
     /// converts steps_taken to a measurement from start
-    pub fn dist_from_home(&mut self) -> f32 {
+    pub fn dist_from_home(&self) -> f32 {
         self.steps_taken as f32 / self.steps_per_rev as f32 * self.wheel_circumference as f32
     }
 
@@ -160,10 +160,11 @@ impl Motor {
         }
     }
 
+    
     pub fn status(&self) {
         println!(
             " Status: 
-             State: {}
+             State: {:?}
              Distance from home: {}",
              self.direction,
              self.dist_from_home(),

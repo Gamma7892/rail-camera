@@ -30,12 +30,13 @@ const WHEEL_CIRCUMFERENCE: u16 = 150; // in mm
 const ACCEPTABLE_ERROR: f32 = 0.5; // in mm
 
 enum MessageType {
-    State(State),
+    Command(Command),
     Location(f32),
 }
 
 /// Each station is a printer's distance from home in mm, values after that are special cmds who don't use their assigned nums
-enum State {
+#[derive(Debug)]
+enum Command {
     Home = 0,
     Station1 = 10,
     Station2 = 50,
@@ -64,7 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let tx_input = tx_encoder.clone();
 
     // variable declaration for main thread
-    let mut target = State::Home as i32;
+    let mut target = Command::Home as i32;
     let mut nav_flag = false;
     //if dist were 0 on the first loop it'd never start because it's not updated till
     //encoder reads the magnet which can't happen till the motor spins
@@ -85,34 +86,31 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::spawn(move || {
         let io = io::stdin();
 
+        println!("Greetings from the Camera Carriage!");
+        print_cmds();
+
         loop {
-            let mut desired_state = State::Off; //i32 = 0;
+            let mut desired_state = Command::Off; //i32 = 0;
             let mut cmd = String::new();
-            println!(
-                " Cmds: 
-                 0: HOME the gondola
-                 1: move to printer 1 
-                 2: move to printer 2 
-                 3: move to printer 3 
-                 4: enable motor 
-                 5: disable motor 
-                 6: print status info"
-            );
+            
             io.read_line(&mut cmd).expect("problems taking input.");
             cmd.pop();
             match &cmd as &str {
-                "0" => desired_state = State::Home,
-                "1" => desired_state = State::Station1,
-                "2" => desired_state = State::Station2,
-                "3" => desired_state = State::Station3,
-                "4" => desired_state = State::On,
-                "5" => desired_state = State::Off,
-                "6" => desired_state = State::Status,
+                "0" => desired_state = Command::Home,
+                "1" => desired_state = Command::Station1,
+                "2" => desired_state = Command::Station2,
+                "3" => desired_state = Command::Station3,
+                "4" => desired_state = Command::On,
+                "5" => desired_state = Command::Off,
+                "6" => desired_state = Command::Status,
+                "7" => print_cmds(),
                 _ => println!("error parsing your input of \"{}\", try again.", cmd),
             }
 
+            if &cmd != "7" { println!("relaying command: {:?}",desired_state) }
+
             //TODO properly handle Result instead of using unwrap
-            tx_input.send(MessageType::State(desired_state)).unwrap();
+            tx_input.send(MessageType::Command(desired_state)).unwrap();
         }
     });
 
@@ -121,7 +119,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         match rx.try_recv() {
             Ok(received) => match received {
-                MessageType::State(state) => handle_state_change(state, &mut target, &mut nav_flag, &mut motor),
+                MessageType::Command(state) => handle_state_change(state, &mut target, &mut nav_flag, &mut motor),
                 MessageType::Location(dist) => distance = handle_location_message(dist, target),
             },
             Err(_) => (),
@@ -139,8 +137,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// handles user input from user IO thread
-fn handle_state_change(new_state: State, old_target: &mut i32, nav_flag: &mut bool, motor: &mut Motor) {
-    use crate::State::*;
+fn handle_state_change(new_state: Command, old_target: &mut i32, nav_flag: &mut bool, motor: &mut Motor) {
+    use crate::Command::*;
 
     match new_state {
         Home => *old_target = Home as i32,
@@ -149,7 +147,7 @@ fn handle_state_change(new_state: State, old_target: &mut i32, nav_flag: &mut bo
         Station3 => *old_target = Station3 as i32,
         On =>  { motor.set_power(true); *nav_flag = true; }
         Off => { motor.set_power(false); *nav_flag = false; }
-        Status => { motor.status();}
+        Status => motor.status(),
     }
 }
 
@@ -157,3 +155,20 @@ fn handle_state_change(new_state: State, old_target: &mut i32, nav_flag: &mut bo
 fn handle_location_message(dist_from_home: f32, target: i32) -> f32 {
     target as f32 - dist_from_home
 }
+
+///helper function to get this block out of the match statement
+fn print_cmds() {
+    println!(
+        " Cmds: 
+         0: HOME the gondola
+         1: move to printer 1 
+         2: move to printer 2 
+         3: move to printer 3 
+         4: enable motor 
+         5: disable motor 
+         6: print status info 
+         7: print these commands"
+    );
+}
+
+
