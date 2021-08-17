@@ -6,9 +6,6 @@ mod l239d_driver;
 use crate::l239d_driver::four_pin_stepper_motor::Motor;
 
 /* Driver code written for parts no longer in use
-
-mod l239d_bidirectional_dc_motor_driver;
-use crate::l239d_bidirectional_dc_motor_driver::Motor;
 mod a3144_hall_sensor_driver;
 use crate::a3144_hall_sensor_driver::HallSensor;
 */
@@ -18,17 +15,20 @@ const PIN_MOTOR_EN1: u8 = 13;
 const PIN_MOTOR_EN2: u8 = 25;
 const PIN_MOTOR_1A: u8 = 6;
 const PIN_MOTOR_2A: u8 = 5;
-const PIN_MOTOR_3A: u8 = 23; //TODO get real numbers
+const PIN_MOTOR_3A: u8 = 23;
 const PIN_MOTOR_4A: u8 = 24;
+
+// fields describing motor behavior
 const RPM: u16 = 250; //TODO make a more educated guess
 const STEPS_PER_REV: u16 = 200;
 const WHEEL_CIRCUMFERENCE: u16 = 150; // in mm
 
-//pin connected to A3144
+//pin connected to A3144 Hall sensor
 //const PIN_HALL_IN: u8 = 26;
 
 const ACCEPTABLE_ERROR: f32 = 0.5; // in mm
 
+// used to determine which thread we're reciving from.
 enum MessageType {
     Command(Command),
     Location(f32),
@@ -67,9 +67,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // variable declaration for main thread
     let mut target = Command::Home as i32;
     let mut nav_flag = false;
-    //if dist were 0 on the first loop it'd never start because it's not updated till
-    //encoder reads the magnet which can't happen till the motor spins
-    let mut distance: f32 = 99.0;
+    let mut err_flag = false; //if this is ever set to true we'll need to restart after fixing the problem
 
     //thread for maintaining distance
     // thread::spawn(move || {
@@ -114,20 +112,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    //main thread manages motor driving\
-    //TODO revise HOME cmd to use a button sensor to reset the encoder somehow
+    //main thread manages motor driving
+    //TODO write out blocking version of HOME cmd that uses a button to reset step count
     loop {
         match rx.try_recv() {
             Ok(received) => match received {
                 MessageType::Command(state) => handle_state_change(state, &mut target, &mut nav_flag, &mut motor),
-                MessageType::Location(dist) => distance = handle_location_message(dist, target),
+                MessageType::Location(dist) => err_flag = handle_location_message(dist, motor.dist_from_home(), &mut motor),
             },
             Err(_) => (),
         }
         // We use nav_flag to only goto the target once instead of calling repeatedly
-        if nav_flag {
-            //now visit every step in between target and where we are so we can change target any time. 
-            // motor.goto() had the downside of not allowing a new target until it completed. 
+        if nav_flag && !err_flag {
+            // non blocking motor driving for normal use
             let range_to_target = target as f32 - motor.dist_from_home();
             if range_to_target > ACCEPTABLE_ERROR || range_to_target < (-1.0 * ACCEPTABLE_ERROR) {
                 if range_to_target > 0.0 { motor.step(1) } else { motor.step(-1) };
@@ -151,12 +148,19 @@ fn handle_state_change(new_state: Command, old_target: &mut i32, nav_flag: &mut 
     }
 }
 
-/// handles location message sent from encoder reading
-fn handle_location_message(dist_from_home: f32, target: i32) -> f32 {
-    target as f32 - dist_from_home
+/// uses encoder reading to verify motor position. 
+fn handle_location_message(encoder_dist_from_home: f32, stepper_dist_from_home: f32, motor: &mut Motor) -> bool {
+    let mut err_flag = false;
+    let difference = stepper_dist_from_home - encoder_dist_from_home;
+    if difference > ACCEPTABLE_ERROR {
+        motor.set_power(false);
+        err_flag = true;
+        println!("encoder detected motor fault. please diagnose and restart.");
+    }
+    err_flag
 }
 
-///helper function to get this block out of the match statement
+/// helper function to get this block out of the match statement
 fn print_cmds() {
     println!(
         " Cmds: 

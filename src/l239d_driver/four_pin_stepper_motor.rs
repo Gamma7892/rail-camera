@@ -66,6 +66,10 @@ impl Motor {
         else {
             self.motor_en1.set_low();
             self.motor_en2.set_low();
+            self.motor_1a.set_low();
+            self.motor_2a.set_low();
+            self.motor_3a.set_low();
+            self.motor_4a.set_low();
             self.steps_taken = 0;
         }
     }
@@ -160,14 +164,18 @@ impl Motor {
         }
     }
 
-    
     pub fn status(&self) {
         println!(
             " Status: 
              State: {:?}
-             Distance from home: {}",
+             Distance from home: {}
+             Parameters: 
+             Wheel Circumference: {}
+             RPM: {}",
              self.direction,
              self.dist_from_home(),
+             self.wheel_circumference,
+             (60 * 10000 / self.steps_per_rev as u64 / self.step_delay.as_millis() as u64),
         );
     }
 }
