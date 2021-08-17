@@ -27,6 +27,7 @@ const WHEEL_CIRCUMFERENCE: u16 = 150; // in mm
 //const PIN_HALL_IN: u8 = 26;
 
 const ACCEPTABLE_ERROR: f32 = 0.5; // in mm
+const ENC_VS_STEP_ERROR: f32 = 5; // in mm
 
 // used to determine which thread we're reciving from.
 enum MessageType {
@@ -55,6 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         PIN_MOTOR_2A,
         PIN_MOTOR_3A,
         PIN_MOTOR_4A,
+
         STEPS_PER_REV,
         WHEEL_CIRCUMFERENCE,
     )?;
@@ -152,7 +154,7 @@ fn handle_state_change(new_state: Command, old_target: &mut i32, nav_flag: &mut 
 fn handle_location_message(encoder_dist_from_home: f32, stepper_dist_from_home: f32, motor: &mut Motor) -> bool {
     let mut err_flag = false;
     let difference = stepper_dist_from_home - encoder_dist_from_home;
-    if difference > ACCEPTABLE_ERROR {
+    if difference > ENC_VS_STEP_ERROR {
         motor.set_power(false);
         err_flag = true;
         println!("encoder detected motor fault. please diagnose and restart.");
